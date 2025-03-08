@@ -10,6 +10,9 @@ app = FastAPI()
 UPLOAD_DIR = "/tmp"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Define max file size (4MB to stay under Vercel's limit)
+MAX_FILE_SIZE = 4 * 1024 * 1024  # 4MB in bytes
+
 def count_words_in_pdf(pdf_path):
     """Counts words in a PDF, ignoring empty lines and comments."""
     try:
@@ -57,6 +60,29 @@ def validate_file_extension(file: UploadFile):
 @app.post("/count-words")
 async def count_words_endpoint(file: UploadFile = File(...)):
     """Processes an uploaded file and counts the words in it."""
+    # Check file size first before processing
+    # Read a small portion to get content length from headers if available
+    file_content = await file.read(1024)
+    content_length = file.size if hasattr(file, 'size') else None
+    
+    # If we can't get size from headers, estimate based on first chunk
+    if content_length is None:
+        # Reset file position
+        await file.seek(0)
+        content = await file.read()
+        content_length = len(content)
+        # Reset file position again
+        await file.seek(0)
+    else:
+        # Reset file position
+        await file.seek(0)
+        
+    if content_length > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE/1024/1024}MB."
+        )
+        
     file_extension = validate_file_extension(file)
     input_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(input_path, "wb") as buffer:
