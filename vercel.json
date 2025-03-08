@@ -6,9 +6,23 @@
       "use": "@vercel/python"
     }
   ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
   "routes": [
     {
       "src": "/count-words",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/classify",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/(.*)",
       "dest": "/api/index.py"
     }
   ]
